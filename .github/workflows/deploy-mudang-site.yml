@@ -16,7 +16,15 @@ jobs:
           node-version: 20
       - name: Deploy to Cloudflare (e-rank-mudang)
         working-directory: mudang-site
-        run: npx --yes wrangler@4 deploy
+        # The token is limited to this one Worker, so wrangler's final workers.dev check fails
+        # after the upload is already live. The next step checks the live site instead.
+        run: npx --yes wrangler@4 deploy || echo "wrangler ended with an error after upload, checking the live site"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: 27aaa9c6ec7de0680ce4c411da8ed912
+      - name: Check the live site matches the repo
+        run: |
+          sleep 10
+          curl -fsS -H 'Cache-Control: no-cache' "https://e-rank-mudang.minervamagin.workers.dev/?check=$GITHUB_RUN_ID" -o live.html
+          sha256sum live.html mudang-site/public/index.html
+          cmp live.html mudang-site/public/index.html && echo "LIVE SITE IS UP TO DATE"
